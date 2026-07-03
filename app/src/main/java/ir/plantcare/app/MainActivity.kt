@@ -8,7 +8,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import ir.plantcare.app.ui.PlantCareNavHost
 import ir.plantcare.app.ui.theme.PlantCareTheme
 
@@ -25,9 +28,12 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            PlantCareTheme {
-                Surface(modifier = Modifier.fillMaxSize()) {
-                    PlantCareNavHost()
+            // اپ فقط فارسی است، پس صرف‌نظر از زبان سیستم همیشه راست‌به‌چپ نمایش داده می‌شود
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                PlantCareTheme {
+                    Surface(modifier = Modifier.fillMaxSize()) {
+                        PlantCareNavHost()
+                    }
                 }
             }
         }
