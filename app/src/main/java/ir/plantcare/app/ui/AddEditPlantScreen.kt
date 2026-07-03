@@ -1,8 +1,12 @@
 package ir.plantcare.app.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -11,7 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PhotoLibrary
@@ -58,7 +62,35 @@ fun AddEditPlantScreen(
     ) { success ->
         // فایل از قبل توسط createCameraOutputUri در مسیر درست ذخیره شده،
         // فقط در صورت موفقیت نام آن را به‌عنوان عکس گیاه ثبت می‌کنیم
-        if (success) photoFileName = cameraFileNameHolder
+        if (success) {
+            photoFileName = cameraFileNameHolder
+        } else {
+            // کاربر عکس نگرفت یا لغو کرد؛ فایل خالی احتمالی را پاک می‌کنیم
+            cameraFileNameHolder?.let { ImageUtils.deleteImage(context, it) }
+        }
+    }
+
+    fun openCamera() {
+        try {
+            val (uri, fileName) = ImageUtils.createCameraOutputUri(context)
+            cameraUri = uri
+            cameraFileNameHolder = fileName
+            cameraLauncher.launch(uri)
+        } catch (e: android.content.ActivityNotFoundException) {
+            Toast.makeText(context, "هیچ برنامه دوربینی روی این دستگاه پیدا نشد", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toast.makeText(context, "باز کردن دوربین ممکن نشد: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            openCamera()
+        } else {
+            Toast.makeText(context, "برای گرفتن عکس، اجازه دسترسی به دوربین لازم است", Toast.LENGTH_LONG).show()
+        }
     }
 
     Scaffold(
@@ -67,7 +99,7 @@ fun AddEditPlantScreen(
                 title = { Text(if (existingPlant == null) "افزودن گیاه" else "ویرایش گیاه") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "بازگشت")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "بازگشت")
                     }
                 },
                 actions = {
@@ -115,10 +147,14 @@ fun AddEditPlantScreen(
                 }
                 OutlinedButton(
                     onClick = {
-                        val (uri, fileName) = ImageUtils.createCameraOutputUri(context)
-                        cameraUri = uri
-                        cameraFileNameHolder = fileName
-                        cameraLauncher.launch(uri)
+                        val hasPermission = ContextCompat.checkSelfPermission(
+                            context, Manifest.permission.CAMERA
+                        ) == PackageManager.PERMISSION_GRANTED
+                        if (hasPermission) {
+                            openCamera()
+                        } else {
+                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                        }
                     },
                     modifier = Modifier.weight(1f)
                 ) {
