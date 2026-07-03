@@ -87,6 +87,32 @@ fun SettingsScreen(
                 onClick = { importLauncher.launch("application/zip") },
                 modifier = Modifier.fillMaxWidth()
             ) { Text("انتخاب فایل بکاپ و بازیابی") }
+
+            Spacer(Modifier.height(40.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(16.dp))
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "گیاه‌یار",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Version 1.3.0",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "طراحی و توسعه: کیوان عدیلی",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
