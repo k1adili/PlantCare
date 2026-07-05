@@ -7,15 +7,16 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import ir.plantcare.app.data.CareLog
@@ -23,6 +24,9 @@ import ir.plantcare.app.data.CareType
 import ir.plantcare.app.data.Plant
 import ir.plantcare.app.util.ImageUtils
 import ir.plantcare.app.util.JalaliCalendar
+
+/** نگه‌داری وضعیت دیالوگ ثبت/ویرایش رویداد. اگر editingLog پر باشد یعنی در حالت ویرایش هستیم. */
+private data class LogDialogState(val type: CareType, val editingLog: CareLog? = null)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,11 +36,12 @@ fun PlantDetailScreen(
     onBack: () -> Unit,
     onEdit: () -> Unit,
     onLogCare: (CareType, Long, String) -> Unit,
+    onUpdateLog: (CareLog, CareType, Long, String) -> Unit,
     onDeleteLog: (CareLog) -> Unit
 ) {
     val context = LocalContext.current
     val photoFile = ImageUtils.fileFor(context, plant.photoFileName)
-    var showLogDialog by remember { mutableStateOf<CareType?>(null) }
+    var dialogState by remember { mutableStateOf<LogDialogState?>(null) }
 
     Scaffold(
         topBar = {
@@ -49,7 +54,7 @@ fun PlantDetailScreen(
                 },
                 actions = {
                     IconButton(onClick = onEdit) {
-                        Icon(Icons.Filled.Edit, contentDescription = "ویرایش")
+                        Icon(Icons.Filled.Edit, contentDescription = "ویرایش گیاه")
                     }
                 }
             )
@@ -103,12 +108,14 @@ fun PlantDetailScreen(
                         .padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Button(onClick = { showLogDialog = CareType.WATERING }, modifier = Modifier.weight(1f)) {
-                        Text("ثبت آبیاری")
-                    }
-                    Button(onClick = { showLogDialog = CareType.FERTILIZING }, modifier = Modifier.weight(1f)) {
-                        Text("ثبت کوددهی")
-                    }
+                    Button(
+                        onClick = { dialogState = LogDialogState(CareType.WATERING) },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("ثبت آبیاری") }
+                    Button(
+                        onClick = { dialogState = LogDialogState(CareType.FERTILIZING) },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("ثبت کوددهی") }
                 }
                 Row(
                     Modifier
@@ -116,15 +123,18 @@ fun PlantDetailScreen(
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedButton(onClick = { showLogDialog = CareType.PRUNING }, modifier = Modifier.weight(1f)) {
-                        Text("هرس")
-                    }
-                    OutlinedButton(onClick = { showLogDialog = CareType.REPOTTING }, modifier = Modifier.weight(1f)) {
-                        Text("تعویض گلدان")
-                    }
-                    OutlinedButton(onClick = { showLogDialog = CareType.OTHER }, modifier = Modifier.weight(1f)) {
-                        Text("سایر")
-                    }
+                    OutlinedButton(
+                        onClick = { dialogState = LogDialogState(CareType.PRUNING) },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("هرس") }
+                    OutlinedButton(
+                        onClick = { dialogState = LogDialogState(CareType.REPOTTING) },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("تعویض گلدان") }
+                    OutlinedButton(
+                        onClick = { dialogState = LogDialogState(CareType.OTHER) },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("سایر") }
                 }
             }
             item {
@@ -145,21 +155,29 @@ fun PlantDetailScreen(
                 }
             } else {
                 items(logs) { log ->
-                    LogItem(log = log, onDelete = { onDeleteLog(log) })
+                    LogItem(
+                        log = log,
+                        onEdit = { dialogState = LogDialogState(log.type, editingLog = log) },
+                        onDelete = { onDeleteLog(log) }
+                    )
                 }
             }
             item { Spacer(Modifier.height(24.dp)) }
         }
     }
 
-    showLogDialog?.let { type ->
-        var note by remember { mutableStateOf("") }
-        var pickedDate by remember { mutableStateOf(System.currentTimeMillis()) }
+    dialogState?.let { state ->
+        val editingLog = state.editingLog
+        var note by remember(editingLog) { mutableStateOf(editingLog?.note ?: "") }
+        var pickedDate by remember(editingLog) {
+            mutableStateOf(editingLog?.dateMillis ?: System.currentTimeMillis())
+        }
         var showDatePicker by remember { mutableStateOf(false) }
+        val isEditing = editingLog != null
 
         AlertDialog(
-            onDismissRequest = { showLogDialog = null },
-            title = { Text("ثبت ${type.label}") },
+            onDismissRequest = { dialogState = null },
+            title = { Text(if (isEditing) "ویرایش ${state.type.label}" else "ثبت ${state.type.label}") },
             text = {
                 Column {
                     OutlinedButton(onClick = { showDatePicker = true }) {
@@ -175,12 +193,16 @@ fun PlantDetailScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    onLogCare(type, pickedDate, note)
-                    showLogDialog = null
-                }) { Text("ثبت") }
+                    if (isEditing) {
+                        onUpdateLog(editingLog!!, state.type, pickedDate, note)
+                    } else {
+                        onLogCare(state.type, pickedDate, note)
+                    }
+                    dialogState = null
+                }) { Text(if (isEditing) "ذخیره" else "ثبت") }
             },
             dismissButton = {
-                TextButton(onClick = { showLogDialog = null }) { Text("انصراف") }
+                TextButton(onClick = { dialogState = null }) { Text("انصراف") }
             }
         )
 
@@ -203,7 +225,7 @@ private fun InfoRow(label: String, value: String) {
 }
 
 @Composable
-private fun LogItem(log: CareLog, onDelete: () -> Unit) {
+private fun LogItem(log: CareLog, onEdit: () -> Unit, onDelete: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -217,14 +239,25 @@ private fun LogItem(log: CareLog, onDelete: () -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(log.type.label, fontWeight = FontWeight.Bold)
                 Text(JalaliCalendar.format(log.dateMillis), style = MaterialTheme.typography.bodySmall)
                 if (log.note.isNotBlank()) {
-                    Text(log.note, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        log.note,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
-            TextButton(onClick = onDelete) { Text("حذف") }
+            Spacer(Modifier.width(4.dp))
+            IconButton(onClick = onEdit) {
+                Icon(Icons.Filled.Edit, contentDescription = "ویرایش")
+            }
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Filled.Delete, contentDescription = "حذف")
+            }
         }
     }
 }
