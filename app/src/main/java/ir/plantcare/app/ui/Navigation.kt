@@ -80,7 +80,8 @@ fun PlantCareNavHost() {
                     onBack = { navController.popBackStack() },
                     onEdit = { navController.navigate(Routes.edit(plantId)) },
                     onLogCare = { type, date, note -> viewModel.logCare(p, type, date, note) },
-                    onDeleteLog = { log -> viewModel.deleteLog(log) }
+                    onUpdateLog = { log, type, date, note -> viewModel.updateLog(p, log, type, date, note) },
+                    onDeleteLog = { log -> viewModel.deleteLog(p, log) }
                 )
             }
         }
