@@ -103,7 +103,7 @@ fun SettingsScreen(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Version 1.3.0",
+                    "Version 1.5.0",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
