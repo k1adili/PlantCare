@@ -41,17 +41,35 @@ class PlantViewModel(application: Application) : AndroidViewModel(application) {
     fun logCare(plant: Plant, type: CareType, dateMillis: Long, note: String = "") {
         viewModelScope.launch {
             careLogDao.insert(CareLog(plantId = plant.id, type = type, dateMillis = dateMillis, note = note))
-            val updated = when (type) {
-                CareType.WATERING -> plant.copy(lastWateringMillis = dateMillis)
-                CareType.FERTILIZING -> plant.copy(lastFertilizingMillis = dateMillis)
-                else -> plant
-            }
-            if (updated != plant) plantDao.update(updated)
+            refreshLastDates(plant)
         }
     }
 
-    fun deleteLog(log: CareLog) {
-        viewModelScope.launch { careLogDao.delete(log) }
+    fun updateLog(plant: Plant, log: CareLog, type: CareType, dateMillis: Long, note: String) {
+        viewModelScope.launch {
+            careLogDao.update(log.copy(type = type, dateMillis = dateMillis, note = note))
+            refreshLastDates(plant)
+        }
+    }
+
+    fun deleteLog(plant: Plant, log: CareLog) {
+        viewModelScope.launch {
+            careLogDao.delete(log)
+            refreshLastDates(plant)
+        }
+    }
+
+    /** بعد از ثبت/ویرایش/حذف یک رویداد، تاریخ آخرین آبیاری و کوددهی گیاه را
+     * بر اساس جدیدترین رویداد ثبت‌شده از هر نوع، دوباره محاسبه می‌کند. */
+    private suspend fun refreshLastDates(plant: Plant) {
+        val latestWatering = careLogDao.getLatestForType(plant.id, CareType.WATERING)?.dateMillis
+        val latestFertilizing = careLogDao.getLatestForType(plant.id, CareType.FERTILIZING)?.dateMillis
+        val current = plantDao.getByIdOnce(plant.id) ?: plant
+        val updated = current.copy(
+            lastWateringMillis = latestWatering,
+            lastFertilizingMillis = latestFertilizing
+        )
+        if (updated != current) plantDao.update(updated)
     }
 
     fun exportBackup(destUri: Uri, onDone: (Boolean, String?) -> Unit) {
